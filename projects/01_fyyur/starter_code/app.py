@@ -21,11 +21,11 @@ class Venue(db.Model):
     address = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(120), nullable=False)
     image_link = db.Column(db.String(500), nullable=False)
-    web_link = db.Column(db.String(120), nullable=False)
+    website_link = db.Column(db.String(120), nullable=False)
     facebook_link = db.Column(db.String(120), nullable=False)
-    genre = db.Column(db.String(120), nullable=False)
-    looking_for_talent = db.Column(db.Boolean, nullable=False, default=False)
-    seek_description = db.Column(db.String(), nullable=False)
+    genres = db.Column(db.String(120), nullable=False)
+    seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String(), nullable=False)
     show = db.relationship('Show', backref='Venue', lazy=True)
     artists = db.relationship('Venue', secondary=artist_venue, backref=db.backref('Venues', lazy=True))
     # DONE: implement any missing fields, as a database migration using Flask-Migrate
@@ -41,9 +41,9 @@ class Artist(db.Model):
     genres = db.Column(db.String(120), nullable=False)
     image_link = db.Column(db.String(), nullable=False)
     facebook_link = db.Column(db.String(), nullable=False)
-    web_link = db.Column(db.String(), nullable=False)
-    looking_for_venue = db.Column(db.Boolean, nullable=False, default=False)
-    seek_description = db.Column(db.String(), nullable=False)
+    website_link = db.Column(db.String(), nullable=False)
+    seeking_venue = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String(), nullable=False)
     show = db.relationship('Show', backref='Artist', lazy=True)
 
     # DONE: implement any missing fields, as a database migration using Flask-Migrate
@@ -85,30 +85,9 @@ def index():
 
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
+  # DONE: replace with real venues data.
   #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
-  return render_template('pages/venues.html', areas=data);
+  return render_template('pages/artists.html', artists=Venue.query.all())
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -214,20 +193,36 @@ def show_venue(venue_id):
 
 @app.route('/venues/create', methods=['GET'])
 def create_venue_form():
-  form = VenueForm()
+  form = VenueForm(request.form)
   return render_template('forms/new_venue.html', form=form)
+
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-  # TODO: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
+  # DONE: insert form data as a new Venue record in the db, instead
+  # DONE: modify data to be the data object returned from db insertion
+  error = False
+  try:
+    new_venue = Venue()
+    form_data = VenueForm(request.form)
+    form_data.populate_obj(new_venue)
+    db.session.add(new_venue)
+    db.session.commit()
+  except:
+      error = True
+      db.session.rollback()
+  finally:
+      db.session.close()
+      if not error : 
+        # on successful db insert, flash success
+        flash('Venue ' + request.form['name'] + ' was successfully listed!')
+      else:
+        # on successful db insert, flash success
+        flash('Venue ' + request.form['name'] + ' was not listed! An error occured')
 
-  # on successful db insert, flash success
-  flash('Venue ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-  return render_template('pages/home.html')
+      # DONE: on unsuccessful db insert, flash an error instead.
+      # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
+      return render_template('pages/home.html')
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
@@ -265,7 +260,7 @@ def show_artist(artist_id):
   # DONE: replace with real artist data from the artist table, using artist_id
 
   artist_info = Artist.query.get(artist_id)
-  artist_info.website = artist_info.web_link
+  artist_info.website = artist_info.website_link
  
   return render_template('pages/show_artist.html', artist=artist_info)
 
@@ -274,7 +269,7 @@ def show_artist(artist_id):
 
 @app.route('/artists/<int:artist_id>/edit', methods=['GET', 'POST'])
 def edit_artist(artist_id):
-  form = ArtistForm()
+  form = ArtistForm(request.form)
   selectedArtist = Artist.query.get(artist_id)
   if request.method == 'POST':
       form.populate_obj(selectedArtist)
@@ -322,18 +317,14 @@ def create_artist_form():
   return render_template('forms/new_artist.html', form=form)
 
 @app.route('/artists/create', methods=['POST'])
-
 def create_artist_submission():
   # DONE: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
+  # DONE: modify data to be the data object returned from db insertion
   error = False
   try:
     new_artist = Artist()
     form_data = ArtistForm(request.form)
     form_data.populate_obj(new_artist)
-    new_artist.web_link = request.form.get('website_link')
-    new_artist.seek_description = request.form.get('seeking_description')
-    #new_artist.looking_for_venue = request.form.get('seeking_venue')
     db.session.add(new_artist)
     db.session.commit()
   except:
