@@ -13,7 +13,6 @@ artist_venue = db.Table('artiste_venue',
 
 class Venue(db.Model):
     __tablename__ = 'Venue'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
     city = db.Column(db.String(120), nullable=False)
@@ -27,7 +26,7 @@ class Venue(db.Model):
     seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
     seeking_description = db.Column(db.String(), nullable=False)
     show = db.relationship('Show', backref='Venue', lazy=True)
-    artists = db.relationship('Venue', secondary=artist_venue, backref=db.backref('Venues', lazy=True))
+    artists = db.relationship('Artist', secondary=artist_venue, backref=db.backref('venues', lazy=True))
     # DONE: implement any missing fields, as a database migration using Flask-Migrate
 
 class Artist(db.Model):
@@ -53,7 +52,7 @@ class Artist(db.Model):
 class Show(db.Model):
     __tablename__ = 'Show'
     id = db.Column(db.Integer, primary_key=True)
-    start_time = db.Column(db.String(), nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
     artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
     venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
 
@@ -112,7 +111,7 @@ def show_venue(venue_id):
   # DONE: replace with real venue data from the venues table, using venue_id
   venue_info = Venue.query.get(venue_id)
   venue_info.website = venue_info.website_link
- 
+  formatGenre(venue_info)
   return render_template('pages/show_venue.html', venue=venue_info)
 
 #  Create Venue
@@ -182,7 +181,7 @@ def show_artist(artist_id):
 
   artist_info = Artist.query.get(artist_id)
   artist_info.website = artist_info.website_link
- 
+  formatGenre(artist_info)
   return render_template('pages/show_artist.html', artist=artist_info)
 
 #  Update
@@ -194,6 +193,8 @@ def edit_artist(artist_id):
   selectedArtist = Artist.query.get(artist_id)
   if request.method == 'POST':
       form.populate_obj(selectedArtist)
+      genres = re.findall('\{(.*?)\}',selectedArtist.genres)
+      selectedArtist.genres = genres[0].split(",")
       db.session.commit()
       return render_template('pages/show_artist.html', artist=selectedArtist)
   
@@ -260,7 +261,17 @@ def create_artist_submission():
 def shows():
   # displays list of shows at /shows
   # DONE: replace with real venues data.
-  return render_template('pages/shows.html', shows=Show.query.all())
+  shows = []
+  for show in Show.query.all():
+    info = {
+      'artist_id': show.artist_id,
+      'venue_id' : show.venue_id,
+      'artist_name' : Artist.query.get(show.artist_id).name,
+      'artist_image_link' : Artist.query.get(show.artist_id).image_link,
+      'venue_name' : Venue.query.get(show.venue_id).name
+    }
+    shows.append(info)
+  return render_template('pages/shows.html', shows=shows)
 
 
 
@@ -280,11 +291,15 @@ def create_show_submission():
     new_Show = Show()
     form_data = ShowForm(request.form)
     form_data.populate_obj(new_Show)
+    venue = Venue.query.get(form_data.venue_id.data)
+    artist = Artist.query.get(form_data.artist_id.data)
+    venue.artists.append(artist) #Add Artist & Venue to artist_venue
     db.session.add(new_Show)
     db.session.commit()
   except:
       error = True
       db.session.rollback()
+      print(sys.exc_info())
   finally:
       db.session.close()
       if not error : 
