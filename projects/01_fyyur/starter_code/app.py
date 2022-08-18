@@ -85,7 +85,7 @@ def index():
 @app.route('/venues')
 def venues():
   # DONE: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+  # num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
   venues = Venue.query.with_entities(Venue.city, Venue.state).group_by(Venue.city, Venue.state).all()
   areas = []
   for venue in venues:
@@ -110,6 +110,29 @@ def show_venue(venue_id):
   # shows the venue page with the given venue_id
   # DONE: replace with real venue data from the venues table, using venue_id
   venue_info = Venue.query.get(venue_id)
+  upcoming = db.session.query(Venue, Show).join(Show).filter(Venue.id == venue_id, Show.start_time > datetime.now()) #Query for getting all the venue's upcoming shows
+  past_shows = db.session.query(Venue, Show).join(Show).filter(Venue.id == venue_id, Show.start_time <= datetime.now())#Query for getting all the venue's past shows
+  venue_info.upcoming_shows = []
+  venue_info.past_shows = []
+  for venue, show in upcoming.all():
+    artist = {
+      'artist_image_link' : Artist.query.get(show.artist_id).image_link,
+      'artist_name' : Artist.query.get(show.artist_id).name,
+      'artist_id' : show.artist_id,
+      'start_time' : show.start_time,
+    }
+    venue_info.upcoming_shows.append(artist)
+
+  for venue, show in past_shows.all():
+    artist = {
+      'artist_image_link' : Artist.query.get(show.artist_id).image_link,
+      'artist_name' : Artist.query.get(show.artist_id).name,
+      'artist_id' : show.artist_id,
+      'start_time' : show.start_time,
+    }
+    venue_info.past_shows.append(artist)
+  venue_info.upcoming_shows_count = upcoming.count()
+  venue_info.past_shows_count = past_shows.count()
   venue_info.website = venue_info.website_link
   formatGenre(venue_info)
   return render_template('pages/show_venue.html', venue=venue_info)
@@ -131,9 +154,10 @@ def create_venue_submission():
   try:
     new_venue = Venue()
     form_data = VenueForm(request.form)
-    form_data.populate_obj(new_venue)
-    db.session.add(new_venue)
-    db.session.commit()
+    if form_data.validate():
+      form_data.populate_obj(new_venue)
+      db.session.add(new_venue)
+      db.session.commit()
   except:
       error = True
       db.session.rollback()
@@ -178,8 +202,33 @@ def search_artists():
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
   # DONE: replace with real artist data from the artist table, using artist_id
-
   artist_info = Artist.query.get(artist_id)
+  upcoming = db.session.query(Artist, Show).join(Show).filter(Artist.id == artist_id, Show.start_time > datetime.now()) #Query for getting all the artist's upcoming shows
+  past_shows = db.session.query(Artist, Show).join(Show).filter(Artist.id == artist_id, Show.start_time <= datetime.now())#Query for getting all the artist's past shows
+  artist_info.upcoming_shows = []
+  artist_info.past_shows = []
+
+  for artist, show in upcoming.all():
+    venue = {
+      'venue_image_link' : Venue.query.get(show.venue_id).image_link,
+      'venue_name' : Venue.query.get(show.venue_id).name,
+      'venue_id' : show.venue_id,
+      'start_time' : show.start_time,
+    }
+    artist_info.upcoming_shows.append(venue)
+
+  for artist, show in past_shows.all():
+    venue = {
+      'venue_image_link' : Venue.query.get(show.venue_id).image_link,
+      'venue_name' : Venue.query.get(show.venue_id).name,
+      'venue_id' : show.venue_id,
+      'start_time' : show.start_time,
+    }
+    artist_info.past_shows.append(venue)
+
+
+  artist_info.upcoming_shows_count = upcoming.count()
+  artist_info.past_shows_count = past_shows.count()
   artist_info.website = artist_info.website_link
   formatGenre(artist_info)
   return render_template('pages/show_artist.html', artist=artist_info)
@@ -196,6 +245,7 @@ def edit_artist(artist_id):
       genres = re.findall('\{(.*?)\}',selectedArtist.genres)
       selectedArtist.genres = genres[0].split(",")
       db.session.commit()
+      formatGenre(selectedArtist)
       return render_template('pages/show_artist.html', artist=selectedArtist)
   
   # DONE: populate form with fields from artist with ID <artist_id>
@@ -210,6 +260,7 @@ def edit_venue(venue_id):
   if request.method == 'POST':
       form.populate_obj(selectedVenue)
       db.session.commit()
+      formatGenre(selectedVenue)
       return render_template('pages/show_venue.html', venue=selectedVenue )
   
   # DONE: populate form with fields from venue with ID <venue_id>
@@ -307,7 +358,10 @@ def create_show_submission():
         flash('Show  was successfully listed!')
       else:
         # on successful db insert, flash success
-        flash('Show was not listed! An error occured')
+        if(artist and venue):
+          flash('Show was not listed! An error occured')
+        else:
+          flash('The artist or the venue does not exist in the database :(')
 
       # DONE: on unsuccessful db insert, flash an error instead.
       # e.g., flash('An error occurred. Show ' + data.name + ' could not be listed.')
