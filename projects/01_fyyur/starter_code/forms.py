@@ -1,7 +1,28 @@
 from datetime import datetime
 from flask_wtf import Form
-from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField
-from wtforms.validators import DataRequired, AnyOf, URL
+from wtforms import (
+    Form,
+    StringField, 
+    SelectField, 
+    SelectMultipleField, 
+    DateTimeField, 
+    BooleanField,
+    TelField
+)
+from wtforms.validators import (
+    DataRequired, 
+    AnyOf, 
+    URL, 
+    Length, 
+    Regexp, 
+    ValidationError, 
+    InputRequired
+)
+import re
+
+facebook_regex = r'^(?:https?:\/\/)?(?:www\.|m\.|touch\.)?(?:facebook\.com|fb(?:\.me|\.com))\/(?:(?:\w)*#!\/)?(?:pages\/)?(?:[\w\-]*\/)*?(\/)?([^/?\s]*)(?:/|&|\?)?.*$'
+
+
 
 class ShowForm(Form):
     artist_id = StringField(
@@ -83,7 +104,7 @@ class VenueForm(Form):
         'address', validators=[DataRequired()]
     )
     phone = StringField(
-        'phone'
+        'phone', validators=[Length(min=10, max=13)]
     )
     image_link = StringField(
         'image_link'
@@ -114,18 +135,21 @@ class VenueForm(Form):
         ]
     )
     facebook_link = StringField(
-        'facebook_link', validators=[URL()]
-    )
-    website_link = StringField(
-        'website_link'
-    )
+        # DONE implement enum restriction
+        'facebook_link', validators=[Regexp(facebook_regex, flags=0, message="Invalid Facebook link"), URL()]
+     )
 
+    website_link = StringField(
+        'website_link', validators=[DataRequired(), URL(message="Invalid website link")]
+     )
     seeking_talent = BooleanField( 'seeking_talent' )
 
     seeking_description = StringField(
         'seeking_description'
     )
-
+    def validate_phone(self, phone):
+        if not re.search('^\d{3}-\d{3}-\d{4}$', phone.data):
+            raise ValidationError("Phone number should be in this format : xxx-xxx-xxxx")
 
 
 class ArtistForm(Form):
@@ -192,9 +216,9 @@ class ArtistForm(Form):
         ]
     )
     phone = StringField(
-        # TODO implement validation logic for phone 
-        'phone'
-    )
+        # DONE implement validation logic for phone 
+        'phone', validators=[Length(min=10, max=13)])
+    
     image_link = StringField(
         'image_link'
     )
@@ -223,17 +247,21 @@ class ArtistForm(Form):
         ]
      )
     facebook_link = StringField(
-        # TODO implement enum restriction
-        'facebook_link', validators=[URL()]
+        # DONE implement enum restriction
+        'facebook_link', validators=[Regexp(facebook_regex, flags=0, message="Invalid Facebook link"), URL()]
      )
 
     website_link = StringField(
-        'website_link'
+        'website_link', validators=[DataRequired(), URL(message="Invalid website link")]
      )
 
     seeking_venue = BooleanField( 'seeking_venue' )
 
     seeking_description = StringField(
-            'seeking_description'
+        'seeking_description'
      )
+     
+    def validate_phone(self, phone):
+        if not re.search('^\d{3}-\d{3}-\d{4}$', phone.data):
+            raise ValidationError("Phone number should be in this format : xxx-xxx-xxxx")
 

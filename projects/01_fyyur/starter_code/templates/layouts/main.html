@@ -89,7 +89,7 @@
     <!-- Begin page content -->
     <main id="content" role="main" class="container">
 
-      {% with messages = get_flashed_messages() %}
+      {% with messages = get_flashed_messages(category_filter=["message"]) %}
         {% if messages %}
           {% for message in messages %}
             <div class="alert alert-block alert-info fade in">
@@ -97,6 +97,18 @@
               {{ message }}
             </div>
           {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% with errors = get_flashed_messages(category_filter=["error"]) %}
+        {% if errors %}
+        <div class="alert alert-danger" role="alert">
+          <ul>
+            {%- for msg in errors %}
+            <li>{{ msg }}</li>
+            {% endfor -%}
+          </ul>
+        </div>
         {% endif %}
       {% endwith %}
 
