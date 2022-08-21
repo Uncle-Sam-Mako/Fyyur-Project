@@ -2,7 +2,8 @@ from flask import Flask
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 
-from init import * 
+
+db = SQLAlchemy()
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
